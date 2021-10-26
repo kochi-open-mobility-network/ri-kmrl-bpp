@@ -21,6 +21,8 @@ RUN npm install
 COPY . ./
 RUN npm run build
 
-EXPOSE 8001
+RUN npm install pm2 -g
 
-CMD ["npm", "run", "start" ]
+EXPOSE 8000
+
+CMD ["pm2-runtime", "dist/src/index.js"]
