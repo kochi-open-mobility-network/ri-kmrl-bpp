@@ -4,9 +4,9 @@
   "description": "BPP for Kochi Metro Rail Limited",
   "main": "src/index.js",
   "scripts": {
-    "start": "env-cmd -f ./config/dev.env node dist/src/index.js",
+    "start": "env-cmd -f ./config/prod.env node dist/src/index.js",
     "build": "tsc -p .",
-    "dev": "env-cmd -f ./config/prod.env nodemon --config nodemon.json src/index.ts",
+    "dev": "env-cmd -f ./config/dev.env nodemon --config nodemon.json src/index.ts",
     "dev:debug": "env-cmd -f ./config/dev.env nodemon --config nodemon.json --inspect-brk src/index.ts",
     "init_ts": "npx tsc --init && tslint --init"
   },
