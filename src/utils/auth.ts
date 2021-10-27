@@ -49,7 +49,7 @@ export const signMessage = async (signing_string: string, privateKey: string) =>
 
 export const createAuthorizationHeader = async (message: any) => {
     const { signing_string, expires, created } = await createSigningString(JSON.stringify(message));
-    const signature = await signMessage(signing_string, key.get('private_key'));
+    const signature = await signMessage(signing_string, process.env.sign_private_key || "");
     const subscriber_id = config.bpp_id;
     const header = `Signature keyId="${subscriber_id}|${config.unique_key_id}|ed25519",algorithm="ed25519",created="${created}",expires="${expires}",headers="(created) (expires) digest",signature="${signature}"`
     return header;

@@ -30,13 +30,9 @@ import { setupData } from './db/models/setupData';
   } catch (error) {
     console.error('Unable to connect to the database:', error);
   }
-
-  try {
-    if (key.get('public_key') === '' || key.get('public_key') === undefined || key.get('private_key') === '' || key.get('private_key') === undefined) {
-      await createKeyPair();
-    }
-  } catch (error) {
-    console.error('Key generation error')
+  
+  if (process.env.sign_public_key === '' || process.env.sign_public_key === undefined || process.env.sign_private_key === '' || process.env.sign_private_key === undefined) {
+    throw("Keys not found");
   }
 
   const PORT = process.env.PORT || 8000;
