@@ -51,6 +51,9 @@ const findClosestStops = async (gps: string) => {
     var closestStops = []
     closestStops.push(closestStop.stop_id)
     console.log(closestStop.stop_id, closestStop.distance, "kms away")
+    if(closestStop.distance > config.DISTANCE_LIMIT_KM) {
+        return[];
+    }
     for (var this_stop of sortedStops.slice(1)) {
         if ((this_stop.distance - closestStop.distance) < config.THRESHOLD_DISTANCE_KM) {
             closestStops.push(this_stop.stop_id)
@@ -67,6 +70,9 @@ const findClosestFromGMapsResponse = (sortedResponses: any) => {
     var closestStops = []
     closestStops.push(closestStop.stop_id);
     console.log("Closest is ", closestStop.stop_id, closestStop.distance.text, " and ", closestStop.duration.text, " away");
+    if(closestStop.distance.value / 1000 > config.DISTANCE_LIMIT_KM) {
+        return[];
+    }
     for (var stop of sortedResponses.slice(1)) {
         const threshold_passed = config.USE_TIME_THRESHOLD ?
             (stop.duration.value / 60 - closestStop.duration.value / 60) < config.THRESHOLD_TIME_MIN :
@@ -168,6 +174,10 @@ const createOnSearch = async (req: Request) => {
     console.log(start_codes);
     console.log('end stations')
     console.log(end_codes);
+    if(start_codes.length === 0 || end_codes.length === 0) {
+        console.log("No routes found");
+        return;
+    }
     var locations: any = [];
     var items: any = [];
     for (var start_code of start_codes) {
