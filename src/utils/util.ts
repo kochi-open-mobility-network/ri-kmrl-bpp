@@ -6,7 +6,7 @@ const axios = require('axios').default;
 import { Stops } from '../db/models/Stops.model';
 const { config } = require('../../config/config');
 import { sequelize } from '../db/index';
-import { createAuthorizationHeader } from './auth'; 
+import { createAuthorizationHeader } from './auth';
 
 
 export function combineURLs(baseURL: string, relativeURL: string) {
@@ -51,8 +51,8 @@ const findClosestStops = async (gps: string) => {
     var closestStops = []
     closestStops.push(closestStop.stop_id)
     console.log(closestStop.stop_id, closestStop.distance, "kms away")
-    if(closestStop.distance > config.DISTANCE_LIMIT_KM) {
-        return[];
+    if (closestStop.distance > config.DISTANCE_LIMIT_KM) {
+        return [];
     }
     for (var this_stop of sortedStops.slice(1)) {
         if ((this_stop.distance - closestStop.distance) < config.THRESHOLD_DISTANCE_KM) {
@@ -70,8 +70,8 @@ const findClosestFromGMapsResponse = (sortedResponses: any) => {
     var closestStops = []
     closestStops.push(closestStop.stop_id);
     console.log("Closest is ", closestStop.stop_id, closestStop.distance.text, " and ", closestStop.duration.text, " away");
-    if(closestStop.distance.value / 1000 > config.DISTANCE_LIMIT_KM) {
-        return[];
+    if (closestStop.distance.value / 1000 > config.DISTANCE_LIMIT_KM) {
+        return [];
     }
     for (var stop of sortedResponses.slice(1)) {
         const threshold_passed = config.USE_TIME_THRESHOLD ?
@@ -129,24 +129,70 @@ const findClosestStopsMaps = async (gpsStart: string, gpsEnd: string) => {
     }
 }
 
+const validateGps = (gps: string) => {
+    console.log('validating', gps)
+    if (gps.split(',').length !== 2) {
+        return false;
+    }
+    var [lat, lon] = gps.split(',');
+    var lat_val = parseFloat(lat);
+    var lon_val = parseFloat(lon);
+    console.log(lat_val, lon_val)
+    if (!(!isNaN(lat_val) && !isNaN(lat as any) && lat_val <= 90 && lat_val >= -90)){
+        return false;
+    }
+    if (!(!isNaN(lon_val) && !isNaN(lon as any) && lon_val <= 180 && lon_val >= -180)){
+        return false;
+    }
+    return true;
+}
+
+const validateInputs = (req: Request) => {
+    const body = req.body;
+    var start_received = false;
+    var end_received = false;
+    var start_gps_valid = true;
+    var end_gps_valid = true;
+    if (body.message?.intent?.fulfillment?.start?.location?.station_code) {
+        start_received = true;
+    }
+    if (body.message?.intent?.fulfillment?.end?.location?.station_code) {
+        end_received = true;
+    }
+    if (body.message?.intent?.fulfillment?.start?.location?.gps) {
+        start_received = true;
+        start_gps_valid = validateGps(body.message?.intent?.fulfillment?.start?.location?.gps);
+    }
+    if (body.message?.intent?.fulfillment?.end?.location?.gps) {
+        end_received = true;
+        end_gps_valid = validateGps(body.message?.intent?.fulfillment?.end?.location?.gps);
+    }
+    if(start_received && end_received && start_gps_valid && end_gps_valid) {
+        return true;
+    } else{
+        return false;
+    }
+}
+
 const createOnSearch = async (req: Request) => {
     const body = req.body;
     var start_codes = [];
     var end_codes = [];
-    if (body.message.intent.fulfillment.start.location.station_code) {
+    if (body.message?.intent?.fulfillment?.start?.location?.station_code) {
         start_codes.push(body.message.intent.fulfillment.start.location.station_code)
     }
-    if (body.message.intent.fulfillment.end.location.station_code) {
+    if (body.message?.intent?.fulfillment?.end?.location?.station_code) {
         end_codes.push(body.message.intent.fulfillment.end.location.station_code);
     }
-    const date = body.message.intent.fulfillment.start.time ?
-        body.message.intent.fulfillment.start.time.timestamp :
+
+    const date = body.message?.intent?.fulfillment?.start?.time?.timestamp ?
+        body.message?.intent?.fulfillment?.start?.time?.timestamp :
         new Date().toISOString();
-    
+
     const callback_url = req.subscriber_type === 'bg' ? req.subscriber_url : body.context.bap_uri;
     if (start_codes.length === 0 || end_codes.length === 0) {
-        var start_location = body.message.intent.fulfillment.start.location.gps;
-        var end_location = body.message.intent.fulfillment.end.location.gps;
+        var start_location = body.message?.intent?.fulfillment?.start?.location?.gps;
+        var end_location = body.message?.intent?.fulfillment?.end?.location?.gps;
         if (config.USE_MAPS_API) {
             try {
                 console.log("Received search parameter start location :", start_location);
@@ -174,7 +220,7 @@ const createOnSearch = async (req: Request) => {
     console.log(start_codes);
     console.log('end stations')
     console.log(end_codes);
-    if(start_codes.length === 0 || end_codes.length === 0) {
+    if (start_codes.length === 0 || end_codes.length === 0) {
         console.log("No routes found");
         return;
     }
@@ -226,10 +272,10 @@ const createOnSearch = async (req: Request) => {
     };
     const url = combineURLs(callback_url, '/on_search');
     const axios_config = await createHeaderConfig(response);
-    console.log("Sending response to ",url);
-    try{
+    console.log("Sending response to ", url);
+    try {
         axios.post(url, response, axios_config);
-    } catch (e){
+    } catch (e) {
         console.log(e);
     }
 }
@@ -253,7 +299,7 @@ const createItemsArray = async (from: string, to: string, fare: any, stop_times:
     const currency_type = fare.currency_type;
     var from_schedule = [];
     var to_schedule = [];
-    for(var time of stop_times) {
+    for (var time of stop_times) {
         from_schedule.push(time.arrival_time);
         to_schedule.push(time.destination_time);
     }
@@ -268,7 +314,7 @@ const createItemsArray = async (from: string, to: string, fare: any, stop_times:
         },
         "stops": [
             {
-                "id" : from,
+                "id": from,
                 "time": {
                     "schedule": {
                         "times": from_schedule
@@ -276,7 +322,7 @@ const createItemsArray = async (from: string, to: string, fare: any, stop_times:
                 }
             },
             {
-                "id" : to,
+                "id": to,
                 "time": {
                     "schedule": {
                         "times": to_schedule
@@ -321,7 +367,7 @@ const getAllStations = async () => {
 
 const get_stop_times = async (start_stop: string, end_stop: string, date: string) => {
     const date_obj = new Date(date);
-    const date_ist = new Date(date_obj.getTime() - ((-330)*60*1000))
+    const date_ist = new Date(date_obj.getTime() - ((-330) * 60 * 1000))
     var weekday = new Array(7);
     weekday[0] = "sunday";
     weekday[1] = "monday";
@@ -341,7 +387,7 @@ const get_stop_times = async (start_stop: string, end_stop: string, date: string
                     ori.stop_id = '${start_stop}' AND end.stop_id = '${end_stop}' AND
                     cal.${weekday[day]} = 1`,
         { type: QueryTypes.SELECT });
-    for(var time of times) {
+    for (var time of times) {
         time.arrival_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.arrival_time + '.000+05:30').toISOString();
         time.departure_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.departure_time + '.000+05:30').toISOString();
         time.destination_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.destination_time + '.000+05:30').toISOString();
@@ -363,4 +409,4 @@ const get_fares = async (start: string, end: string) => {
 }
 
 
-module.exports = { createOnSearch }
+module.exports = { createOnSearch, validateInputs }

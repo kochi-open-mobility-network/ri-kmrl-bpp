@@ -8,14 +8,28 @@ const router = express.Router();
 router.post("/", async (req: Request, res: Response) => {
     try {
         console.log('Received search');
-        utils.createOnSearch(req);
-        res.status(200).send({
-            "message": {
-                "ack": {
-                    "status": "ACK"
+        if (utils.validateInputs(req)) {
+            utils.createOnSearch(req);
+            res.status(200).send({
+                "message": {
+                    "ack": {
+                        "status": "ACK"
+                    }
                 }
-            }
-        })
+            })
+        } else {
+            res.status(400).send({
+                "message": {
+                    "ack": {
+                        "status": "NACK"
+                    }
+                },
+                "error": {
+                    "type": "JSON-SCHEMA-ERROR",
+                    "message": "Start and end locations not passed properly"
+                }
+            })
+        }
     } catch (error) {
         res.status(500).send((error as Error).message);
     }
