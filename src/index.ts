@@ -38,6 +38,7 @@ import { setupData } from './db/models/setupData';
   const PORT = process.env.PORT || 8000;
   app.use('/search', auth, require("./routes/search"));
   app.use('/auth', require("./routes/auth"));
+  app.use('/health', require("./routes/health"));
   app.listen(PORT, () => {
     console.log(`Metro BPP listening on port ${PORT}`)
   })
