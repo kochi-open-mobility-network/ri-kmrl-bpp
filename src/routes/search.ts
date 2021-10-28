@@ -8,6 +8,7 @@ const router = express.Router();
 router.post("/", async (req: Request, res: Response) => {
     try {
         console.log('Received search');
+        console.log(req.body?.context?.transaction_id, req.body);
         if (utils.validateInputs(req)) {
             utils.createOnSearch(req);
             res.status(200).send({

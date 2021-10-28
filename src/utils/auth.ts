@@ -106,12 +106,14 @@ const verifyHeader = async (header: string, req: Request) => {
         if (!parts || Object.keys(parts).length === 0) {
             throw (new Error("Header parsing failed"));
         }
-        const subscriber_details = await lookupRegistry(parts['keyId'].split('|')[0])
+        var [subscriber_id, unique_key_id] = parts['keyId'].split('|')
+        const subscriber_details = await lookupRegistry(subscriber_id, unique_key_id)
         const public_key = subscriber_details.signing_public_key;
         const subscriber_url = subscriber_details.subscriber_url;
         const subscriber_type = subscriber_details.type.toLowerCase();
         req.subscriber_type = subscriber_type;
         req.subscriber_url = subscriber_url;
+        console.log("Received key:", public_key)
         const { signing_string } = await createSigningString(req.rawBody, parts['created'], parts['expires']);
         const verified = await verifyMessage(parts['signature'], signing_string, public_key);
         if (!verified) {
@@ -129,16 +131,16 @@ const verifyHeader = async (header: string, req: Request) => {
 
 export const auth = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        console.log("\nNew Request");
+        console.log("\nNew Request txn_id", req.body?.context?.transaction_id);
         if (req.body?.context?.bap_id) {
-            console.log("Request from", req.body.context.bap_id)
+            console.log(req.body?.context?.transaction_id, "Request from", req.body.context.bap_id)
         }
         const auth_header = req.headers['authorization'] || "";
         const proxy_header = req.headers['proxy-authorization'] || "";
         if (config.auth) {
             var verified = await verifyHeader(auth_header, req);
             var verified_proxy = proxy_header ? await verifyHeader(proxy_header, req) : true;
-            console.log("Verification status:", verified, verified_proxy);
+            console.log(req.body?.context?.transaction_id, "Verification status:", verified, "Proxy verification:", verified_proxy);
             if (!verified || !verified_proxy) {
                 throw Error("Header verification failed");
             }
@@ -150,10 +152,11 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
     }
 }
 
-const lookupRegistry = async (subscriber_id: string) => {
+const lookupRegistry = async (subscriber_id: string, unique_key_id: string) => {
     const subscriber_details = await Subscribers.findByPk(subscriber_id);
     if (subscriber_details) {
         if (subscriber_details.valid_until > new Date()) {
+            console.log("Found subscriber details in cache");
             return subscriber_details;
         } else {
             subscriber_details.destroy();
@@ -166,7 +169,9 @@ const lookupRegistry = async (subscriber_id: string) => {
                 Authorization: header
             }
         }
-        const response = await axios.post(combineURLs(config.registry_url, '/lookup'), { subscriber_id }, axios_config);
+
+        console.log("Calling", combineURLs(config.registry_url, '/lookup'), { subscriber_id, unique_key_id })
+        const response = await axios.post(combineURLs(config.registry_url, '/lookup'), { subscriber_id, unique_key_id });
         if (response.data) {
             if (response.data.length === 0) {
                 throw (new Error("Subscriber not found"));
@@ -176,6 +181,7 @@ const lookupRegistry = async (subscriber_id: string) => {
         }
         return response.data[0];
     } catch (error) {
+        console.log(error)
         console.log((error as Error).message);
         throw (new Error("Registry lookup error"))
     }

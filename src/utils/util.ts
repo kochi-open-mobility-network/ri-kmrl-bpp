@@ -193,33 +193,33 @@ const createOnSearch = async (req: Request) => {
         var end_location = body.message?.intent?.fulfillment?.end?.location?.gps;
         if (config.USE_MAPS_API) {
             try {
-                console.log("Received search parameter start location :", start_location);
-                console.log("Received search parameter end location :", end_location);
+                console.log(req.body?.context?.transaction_id, "Received search parameter start location :", start_location);
+                console.log(req.body?.context?.transaction_id, "Received search parameter end location :", end_location);
                 [start_codes, end_codes] = await findClosestStopsMaps(start_location, end_location);
             } catch (e) {
-                console.log("MAPS API call failed. Using fallback algorithm")
+                console.log(req.body?.context?.transaction_id, "MAPS API call failed. Using fallback algorithm")
                 start_codes = await findClosestStops(start_location);
                 end_codes = await findClosestStops(end_location);
             }
         } else {
             if (start_codes.length === 0) {
                 var start_location = body.message.intent.fulfillment.start.location.gps;
-                console.log("Received search parameter start location :", start_location);
+                console.log(req.body?.context?.transaction_id, "Received search parameter start location :", start_location);
                 start_codes = await findClosestStops(start_location);
             }
             if (end_codes.length === 0) {
                 var end_location = body.message.intent.fulfillment.end.location.gps;
-                console.log("Received search parameter end location :", end_location);
+                console.log(req.body?.context?.transaction_id, "Received search parameter end location :", end_location);
                 end_codes = await findClosestStops(end_location);
             }
         }
     }
-    console.log('start stations')
+    console.log(req.body?.context?.transaction_id, 'start stations')
     console.log(start_codes);
-    console.log('end stations')
+    console.log(req.body?.context?.transaction_id, 'end stations')
     console.log(end_codes);
     if (start_codes.length === 0 || end_codes.length === 0) {
-        console.log("No routes found");
+        console.log(req.body?.context?.transaction_id, "No routes found");
         return;
     }
     var locations: any = [];
@@ -229,7 +229,7 @@ const createOnSearch = async (req: Request) => {
             if (start_code == end_code) {
                 continue;
             }
-            console.log("ROUTE:", start_code, "TO", end_code);
+            console.log(req.body?.context?.transaction_id, "ROUTE:", start_code, "TO", end_code);
             const stop_times = await get_stop_times(start_code, end_code, date);
             const fare = await get_fares(start_code, end_code);
             if (!_.find(locations, ['id', start_code])) {
@@ -242,8 +242,6 @@ const createOnSearch = async (req: Request) => {
             }
             const this_items = await createItemsArray(start_code, end_code, fare, stop_times);
             items = items.concat(this_items);
-            console.log('items');
-            console.log(this_items);
         }
     }
     let response: any = {};
@@ -270,7 +268,8 @@ const createOnSearch = async (req: Request) => {
     };
     const url = combineURLs(callback_url, '/on_search');
     const axios_config = await createHeaderConfig(response);
-    console.log("Sending response to ", url);
+    console.log(req.body?.context?.transaction_id, response);
+    console.log(req.body?.context?.transaction_id, "Sending response to ", url);
     try {
         axios.post(url, response, axios_config);
     } catch (e) {
