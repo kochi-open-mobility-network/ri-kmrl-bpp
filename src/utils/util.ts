@@ -130,14 +130,12 @@ const findClosestStopsMaps = async (gpsStart: string, gpsEnd: string) => {
 }
 
 const validateGps = (gps: string) => {
-    console.log('validating', gps)
     if (gps.split(',').length !== 2) {
         return false;
     }
     var [lat, lon] = gps.split(',');
     var lat_val = parseFloat(lat);
     var lon_val = parseFloat(lon);
-    console.log(lat_val, lon_val)
     if (!(!isNaN(lat_val) && !isNaN(lat as any) && lat_val <= 90 && lat_val >= -90)){
         return false;
     }
