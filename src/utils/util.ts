@@ -268,7 +268,8 @@ const createOnSearch = async (req: Request) => {
     };
     const url = combineURLs(callback_url, '/on_search');
     const axios_config = await createHeaderConfig(response);
-    console.log(req.body?.context?.transaction_id, response);
+    console.log(req.body?.context?.transaction_id, "Response body", JSON.stringify(response));
+    console.log(req.body?.context?.transaction_id, "Header", axios_config.headers);
     console.log(req.body?.context?.transaction_id, "Sending response to ", url);
     try {
         axios.post(url, response, axios_config);

@@ -49,6 +49,7 @@ export const signMessage = async (signing_string: string, privateKey: string) =>
 
 export const createAuthorizationHeader = async (message: any) => {
     const { signing_string, expires, created } = await createSigningString(JSON.stringify(message));
+    console.log(message?.context?.transaction_id, "Signing string: ", signing_string);
     const signature = await signMessage(signing_string, process.env.sign_private_key || "");
     const subscriber_id = config.bpp_id;
     const header = `Signature keyId="${subscriber_id}|${config.unique_key_id}|ed25519",algorithm="ed25519",created="${created}",expires="${expires}",headers="(created) (expires) digest",signature="${signature}"`
@@ -113,7 +114,7 @@ const verifyHeader = async (header: string, req: Request) => {
         const subscriber_type = subscriber_details.type.toLowerCase();
         req.subscriber_type = subscriber_type;
         req.subscriber_url = subscriber_url;
-        console.log("Received key:", public_key)
+        console.log(req.body?.context?.transaction_id, "Received key:", public_key)
         const { signing_string } = await createSigningString(req.rawBody, parts['created'], parts['expires']);
         const verified = await verifyMessage(parts['signature'], signing_string, public_key);
         if (!verified) {
@@ -124,7 +125,7 @@ const verifyHeader = async (header: string, req: Request) => {
         }
         return verified;
     } catch (error) {
-        console.log((error as Error).message);
+        console.log(req.body?.context?.transaction_id, (error as Error).message);
         return false;
     }
 }
@@ -147,7 +148,7 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
         }
         next();
     } catch (e) {
-        console.log((e as Error).message);
+        console.log(req.body?.context?.transaction_id, (e as Error).message);
         res.status(401).send('Authentication failed');
     }
 }
