@@ -106,6 +106,7 @@ const findClosestStopsMaps = async (gpsStart: string, gpsEnd: string) => {
             }
         })
         if (response.data.status !== 'OK') {
+            console.log("Response from google maps:", response);
             throw ("Maps API error")
         }
 
