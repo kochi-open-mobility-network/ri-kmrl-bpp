@@ -147,6 +147,14 @@ const validateGps = (gps: string) => {
 
 const validateInputs = (req: Request) => {
     const body = req.body;
+    const context = req.body.context;
+    if(!context){
+        return "Context not found";
+    }
+    if(context.city != config.city || context.domain != config.domain || context.country != config.country) {
+        return "Wrong value in context";
+    }
+
     var start_received = false;
     var end_received = false;
     var start_gps_valid = true;
@@ -166,9 +174,9 @@ const validateInputs = (req: Request) => {
         end_gps_valid = validateGps(body.message?.intent?.fulfillment?.end?.location?.gps);
     }
     if(start_received && end_received && start_gps_valid && end_gps_valid) {
-        return true;
+        return null;
     } else{
-        return false;
+        return "Start and end locations not passed in expected format";
     }
 }
 

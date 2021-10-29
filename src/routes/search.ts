@@ -9,7 +9,8 @@ router.post("/", async (req: Request, res: Response) => {
     try {
         console.log('Received search');
         console.log(req.body?.context?.transaction_id, req.rawBody);
-        if (utils.validateInputs(req)) {
+        var errorMessage = utils.validateInputs(req);
+        if (!errorMessage) {
             utils.createOnSearch(req);
             res.status(200).send({
                 "message": {
@@ -27,7 +28,7 @@ router.post("/", async (req: Request, res: Response) => {
                 },
                 "error": {
                     "type": "JSON-SCHEMA-ERROR",
-                    "message": "Start and end locations not passed properly"
+                    "message": errorMessage
                 }
             })
         }

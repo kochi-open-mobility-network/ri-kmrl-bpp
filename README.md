@@ -14,6 +14,10 @@ docker run -p 8000:8000 --name metro --env MAPS_KEY=< key > metro-bpp
     bpp_uri
     registry_url
     unique_key_id
+    country : Default value set as "IND"
+    domain: Default value set as "nic2004:60212"
+    city: Default value set as ""
+    core_version: Default value set as "0.9.1"
     
 #### Optional
     THRESHOLD_DISTANCE_KM : Threshold to select next closest station (default: 0.50)
