@@ -152,7 +152,7 @@ const validateInputs = (req: Request) => {
     if(!context){
         return "Context not found";
     }
-    if(context.city != config.city || context.domain != config.domain || context.country != config.country) {
+    if(context.city != config.city || context.domain != config.domain || context.country != config.country || context.core_version != config.core_version) {
         return "Wrong value in context";
     }
 
