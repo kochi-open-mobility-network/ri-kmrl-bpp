@@ -20,7 +20,7 @@ export class StopTimes extends Model {
     stop_id: string
 
     @Column
-    stop_sequence: string
+    stop_sequence: number
 
     @Column
     timepoint: string

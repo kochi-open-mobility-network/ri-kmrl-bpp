@@ -55,7 +55,7 @@ const findClosestStops = async (gps: string) => {
         return [];
     }
     for (var this_stop of sortedStops.slice(1)) {
-        if ((this_stop.distance - closestStop.distance) < config.THRESHOLD_DISTANCE_KM) {
+        if ((this_stop.distance - closestStop.distance) < config.THRESHOLD_DISTANCE_KM && sortedStops.indexOf(this_stop) < config.MAX_STATIONS ) {
             closestStops.push(this_stop.stop_id)
             console.log(this_stop.stop_id, this_stop.distance, "kms away")
         } else {
@@ -137,10 +137,10 @@ const validateGps = (gps: string) => {
     var [lat, lon] = gps.split(',');
     var lat_val = parseFloat(lat);
     var lon_val = parseFloat(lon);
-    if (!(!isNaN(lat_val) && !isNaN(lat as any) && lat_val <= 90 && lat_val >= -90)){
+    if (!(!isNaN(lat_val) && !isNaN(lat as any) && lat_val <= 90 && lat_val >= -90)) {
         return false;
     }
-    if (!(!isNaN(lon_val) && !isNaN(lon as any) && lon_val <= 180 && lon_val >= -180)){
+    if (!(!isNaN(lon_val) && !isNaN(lon as any) && lon_val <= 180 && lon_val >= -180)) {
         return false;
     }
     return true;
@@ -149,10 +149,10 @@ const validateGps = (gps: string) => {
 const validateInputs = (req: Request) => {
     const body = req.body;
     const context = req.body.context;
-    if(!context){
+    if (!context) {
         return "Context not found";
     }
-    if(context.city != config.city || context.domain != config.domain || context.country != config.country || context.core_version != config.core_version) {
+    if (context.city != config.city || context.domain != config.domain || context.country != config.country || context.core_version != config.core_version) {
         return "Wrong value in context";
     }
 
@@ -174,9 +174,9 @@ const validateInputs = (req: Request) => {
         end_received = true;
         end_gps_valid = validateGps(body.message?.intent?.fulfillment?.end?.location?.gps);
     }
-    if(start_received && end_received && start_gps_valid && end_gps_valid) {
+    if (start_received && end_received && start_gps_valid && end_gps_valid) {
         return null;
-    } else{
+    } else {
         return "Start and end locations not passed in expected format";
     }
 }
@@ -240,50 +240,54 @@ const createOnSearch = async (req: Request) => {
             }
             console.log(req.body?.context?.transaction_id, "ROUTE:", start_code, "TO", end_code);
             const stop_times = await get_stop_times(start_code, end_code, date);
-            const fare = await get_fares(start_code, end_code);
-            if (!_.find(locations, ['id', start_code])) {
-                const this_locations = await createLocationsArray(start_code);
-                locations = locations.concat(this_locations);
+            if (stop_times.length !== 0) {
+                const fare = await get_fares(start_code, end_code);
+                if (!_.find(locations, ['id', start_code])) {
+                    const this_locations = await createLocationsArray(start_code);
+                    locations = locations.concat(this_locations);
+                }
+                if (!_.find(locations, ['id', end_code])) {
+                    const this_locations = await createLocationsArray(end_code);
+                    locations = locations.concat(this_locations);
+                }
+                const this_items = await createItemsArray(start_code, end_code, fare, stop_times);
+                items = items.concat(this_items);
             }
-            if (!_.find(locations, ['id', end_code])) {
-                const this_locations = await createLocationsArray(end_code);
-                locations = locations.concat(this_locations);
-            }
-            const this_items = await createItemsArray(start_code, end_code, fare, stop_times);
-            items = items.concat(this_items);
         }
     }
-    let response: any = {};
-    response.context = body.context;
-    response.context.action = 'on_search';
-    response.context.bpp_id = config.bpp_id;
-    response.context.bpp_uri = config.bpp_uri;
-    response.message = {
-        "catalog": {
-            "bpp/descriptor": {
-                "name": "BPP"
-            },
-            "bpp/providers": [
-                {
-                    "id": "KMRL",
-                    "descriptor": {
-                        "name": "Kochi Metro Rail Limited"
-                    },
-                    "locations": locations,
-                    "items": items
-                }
-            ]
+    if (items.length !== 0) {
+        let response: any = {};
+        response.context = body.context;
+        response.context.action = 'on_search';
+        response.context.bpp_id = config.bpp_id;
+        response.context.bpp_uri = config.bpp_uri;
+        response.message = {
+            "catalog": {
+                "bpp/descriptor": {
+                    "name": "BPP"
+                },
+                "bpp/providers": [
+                    {
+                        "id": "KMRL",
+                        "descriptor": {
+                            "name": "Kochi Metro Rail Limited"
+                        },
+                        "locations": locations,
+                        "items": items
+                    }
+                ]
+            }
+        };
+        const url = combineURLs(callback_url, '/on_search');
+        const axios_config = await createHeaderConfig(response);
+        console.log(req.body?.context?.transaction_id, "Response body", JSON.stringify(response));
+        console.log(req.body?.context?.transaction_id, "Header", axios_config.headers);
+        console.log(req.body?.context?.transaction_id, "Sending response to ", url);
+        try {
+            axios.post(url, response, axios_config);
+        } catch (e) {
+            console.log(e);
         }
-    };
-    const url = combineURLs(callback_url, '/on_search');
-    const axios_config = await createHeaderConfig(response);
-    console.log(req.body?.context?.transaction_id, "Response body", JSON.stringify(response));
-    console.log(req.body?.context?.transaction_id, "Header", axios_config.headers);
-    console.log(req.body?.context?.transaction_id, "Sending response to ", url);
-    try {
-        axios.post(url, response, axios_config);
-    } catch (e) {
-        console.log(e);
     }
 }
 
