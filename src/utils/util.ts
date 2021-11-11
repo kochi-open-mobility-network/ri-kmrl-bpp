@@ -396,7 +396,7 @@ const get_stop_times = async (start_stop: string, end_stop: string, date: string
                     trip.service_id = cal.service_id AND
                     ('${date_ist.toISOString().substring(0, 10)}' BETWEEN cal.start_date AND cal.end_date) AND
                     ori.stop_id = '${start_stop}' AND end.stop_id = '${end_stop}' AND
-                    cal.${weekday[day]} = 1`,
+                    cal.${weekday[day]} = 1 order by ori.arrival_time`,
         { type: QueryTypes.SELECT });
     for (var time of times) {
         time.arrival_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.arrival_time + '.000+05:30').toISOString();
