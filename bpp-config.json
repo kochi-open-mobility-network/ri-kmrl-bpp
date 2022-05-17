@@ -1,0 +1,17 @@
+{
+    "br_id": 205,
+    "subscriber_id": "dev.kmrlbpp.com",
+    "subscriber_url": "https://dev.kmrlbpp.urownsite.xyz/",
+    "type": "BPP",
+    "domain": "nic2004:60221",
+    "city": "Kochi",
+    "country": "IND",
+    "signing_public_key": "spqA+UUVski8+tBcnEttija9XCPotSqC5bUKooznw+Q=",
+    "encr_public_key": "spqA+UUVski8+tBcnEttija9XCPotSqC5bUKooznw+Q=",
+    "valid_from": "2022-04-05T13:01:27.717Z",
+    "valid_until": "2025-04-05T13:01:27.717Z",
+    "status": "SUBSCRIBED",
+    "created": "2022-02-07T10:57:44.057Z",
+    "updated": "2022-02-07T10:57:44.057Z",
+    "ukId": "205"
+}
