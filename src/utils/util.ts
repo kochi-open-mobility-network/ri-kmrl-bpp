@@ -251,9 +251,7 @@ const createOnSearch = async (req: Request) => {
     var items: Array<any> = [];
     const fulfillments: Array<FulfillmentDataType>=[];
 
-    // TODO: first create a locations array.
-    // Then use it to create items and fulfillments array.
-
+    // Use this locations map to create fulfillments.
     const locationsMap=new Map<string, LocationDataType>();
     for(let location_code of start_codes){
         const location: LocationDataType = await getLocationData(location_code);
