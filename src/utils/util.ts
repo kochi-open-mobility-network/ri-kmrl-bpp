@@ -11,8 +11,9 @@ import axios from 'axios';
 import { StopTimeDataType, stopTimeSchema } from '../schemas/stopTime.schema';
 import { ItemDataType } from '../schemas/item.schema';
 import { FareDataType } from '../schemas/fare.schema';
-import {FulfillmentDataType} from '../schemas/fulfillment.schema';
+import { FulfillmentDataType, fulfillmentSchehma } from '../schemas/fulfillment.schema';
 import { LocationDataType } from '../schemas/location.schema';
+import { writeFile, writeFileSync } from 'fs';
 
 
 export function combineURLs(baseURL: string, relativeURL: string) {
@@ -54,7 +55,7 @@ const findClosestStops = async (gps: string) => {
         });
     }
 
-    if(stops_obj.length==0){
+    if (stops_obj.length == 0) {
         return [];
     }
 
@@ -196,7 +197,7 @@ const validateInputs = (req: Request) => {
 
 const createOnSearch = async (req: Request) => {
     const body = req.body;
-    var start_codes:Array<string> = [];
+    var start_codes: Array<string> = [];
     var end_codes: Array<string> = [];
     if (body.message?.intent?.fulfillment?.start?.location?.station_code) {
         start_codes.push(body.message.intent.fulfillment.start.location.station_code)
@@ -246,55 +247,71 @@ const createOnSearch = async (req: Request) => {
     }
 
 
-    // TODO: actual work starts from here.
-    var locations: any = [];
-    var items: Array<any> = [];
-    const fulfillments: Array<FulfillmentDataType>=[];
+    const items: Array<ItemDataType> = [];
+    const fulfillments: Array<FulfillmentDataType> = [];
 
-    // Use this locations map to create fulfillments.
-    const locationsMap=new Map<string, LocationDataType>();
-    for(let location_code of start_codes){
+    const locationsMap = new Map<string, LocationDataType>();
+    for (let location_code of start_codes) {
         const location: LocationDataType = await getLocationData(location_code);
         locationsMap.set(location_code, location);
     }
-    for(let location_code of end_codes){
+    for (let location_code of end_codes) {
         const location: LocationDataType = await getLocationData(location_code);
         locationsMap.set(location_code, location);
     }
 
-    for (var start_code of start_codes) {
-        for (var end_code of end_codes) {
-            // TODO: build items and fulfillments here.
-        }
-    }
+
+    const locations: Array<LocationDataType> = Array.from(locationsMap, ([key, value]) => {
+        return value;
+    });
 
     for (var start_code of start_codes) {
         for (var end_code of end_codes) {
-            if (start_code == end_code) {
+            if (end_code == start_code) {
                 continue;
             }
-            console.log(req.body?.context?.transaction_id, "ROUTE:", start_code, "TO", end_code);
-            const stop_times = await get_stop_times(start_code, end_code, date);
-            
-            console.log('\n\nDev Test:')
-            console.log('Stop Times Length', stop_times.length);
-            console.log('Dev Test End\n\n');
 
-            if (stop_times.length !== 0) {
-                const fare = await get_fares(start_code, end_code);
-                if (!_.find(locations, ['id', start_code])) {
-                    const this_locations = await createLocationsArray(start_code);
-                    locations = locations.concat(this_locations);
-                }
-                if (!_.find(locations, ['id', end_code])) {
-                    const this_locations = await createLocationsArray(end_code);
-                    locations = locations.concat(this_locations);
-                }
-                const this_items = await createItemsArray(start_code, end_code, fare, stop_times);
-                items = items.concat(this_items);
+            const fare = await get_fare(start_code, end_code);
+            const item = await buildItem(start_code, end_code, fare);
+            items.push(item);
+
+            const stopTimes = await get_stop_times(start_code, end_code, date);
+            for (let stopTime of stopTimes) {
+                const fulfillment = await buildFulfillment(start_code, end_code, locationsMap, stopTime);
+                fulfillments.push(fulfillment);
             }
         }
     }
+
+    // // OLD Code:
+    // for (var start_code of start_codes) {
+    //     for (var end_code of end_codes) {
+    //         if (start_code == end_code) {
+    //             continue;
+    //         }
+    //         console.log(req.body?.context?.transaction_id, "ROUTE:", start_code, "TO", end_code);
+    //         const stop_times = await get_stop_times(start_code, end_code, date);
+
+    //         console.log('\n\nDev Test:')
+    //         console.log('Stop Times Length', stop_times.length);
+    //         console.log('Dev Test End\n\n');
+
+    //         if (stop_times.length !== 0) {
+    //             const fare = await get_fare(start_code, end_code);
+    //             if (!_.find(locations, ['id', start_code])) {
+    //                 const this_locations = await createLocationsArray(start_code);
+    //                 locations = locations.concat(this_locations);
+    //             }
+    //             if (!_.find(locations, ['id', end_code])) {
+    //                 const this_locations = await createLocationsArray(end_code);
+    //                 locations = locations.concat(this_locations);
+    //             }
+    //             const this_items = await createItemsArray(start_code, end_code, fare, stop_times);
+    //             items = items.concat(this_items);
+    //         }
+    //     }
+    // }
+
     if (items.length !== 0) {
         let response: any = {};
         response.context = body.context;
@@ -304,23 +321,33 @@ const createOnSearch = async (req: Request) => {
         response.message = {
             "catalog": {
                 "bpp/descriptor": {
-                    "name": "BPP"
+                    "name": "Kochi Metro Rail Ltd."
                 },
                 "bpp/providers": [
                     {
                         "id": "KMRL",
                         "descriptor": {
-                            "name": "Kochi Metro Rail Limited"
+                            "name": "KMRL online"
                         },
                         "locations": locations,
-                        "items": items
+                        "items": items,
+                        "fulfillments": fulfillments
                     }
                 ]
             }
         };
+
+        // TODO: remove this on production...
+        try {
+            writeFileSync('TestJSONs/developed_on_search.json', JSON.stringify(response));
+        } catch (error) {
+            console.error(error);
+        }
+
         const url = combineURLs(callback_url, '/on_search');
         const axios_config = await createHeaderConfig(response);
-        console.log(req.body?.context?.transaction_id, "Response body", JSON.stringify(response));
+        // // TODO: uncomment this.
+        // console.log(req.body?.context?.transaction_id, "Response body", JSON.stringify(response));
         console.log(req.body?.context?.transaction_id, "Header", axios_config.headers);
         console.log(req.body?.context?.transaction_id, "Sending response to ", url);
         try {
@@ -341,14 +368,41 @@ const createHeaderConfig = async (request: any) => {
     return axios_config;
 }
 
-const buildFulfillment = async()=>{
+const buildFulfillment = async (start_code: string, end_code: string, locationsMap: Map<string, LocationDataType>, stopTime: StopTimeDataType) => {
+    const startLocation = locationsMap.get(start_code);
+    const endLocation = locationsMap.get(end_code);
 
+
+    if ((!startLocation) || (!endLocation)) {
+        throw new Error("Location not found");
+    }
+
+    const fulfillmentData: FulfillmentDataType = {
+        id: `${start_code}_TO_${end_code}`,
+        start: {
+            location: startLocation,
+            time: {
+                timestamp: stopTime.arrival_time,
+            }
+        },
+        end: {
+            location: endLocation,
+            time: {
+                timestamp: stopTime.departure_time,
+            }
+        },
+        vehicle: {
+            category: "METRO"
+        }
+    }
+
+    return fulfillmentSchehma.parse(fulfillmentData);
 }
 
 const buildItem = async (start_code: string, end_code: string, fare: FareDataType) => {
-    const item: ItemDataType={
+    const item: ItemDataType = {
         id: `SJT_${start_code}_TO_${end_code}`,
-        descriptor:{
+        descriptor: {
             code: "SJT",
             name: "Single Journey Ticket"
         },
@@ -358,7 +412,7 @@ const buildItem = async (start_code: string, end_code: string, fare: FareDataTyp
         },
         fulfillment_id: `${start_code}_TO_${end_code}`,
         // TODO: discuss with BAP team.
-        matched:false
+        matched: "false"
     }
 
     return item;
@@ -455,7 +509,7 @@ const getAllStations = async () => {
     return stops;
 }
 
-const get_stop_times = async (start_stop: string, end_stop: string, date: string) : Promise<Array<StopTimeDataType>> => {
+const get_stop_times = async (start_stop: string, end_stop: string, date: string): Promise<Array<StopTimeDataType>> => {
     const date_obj = new Date(date);
     const date_ist = new Date(date_obj.getTime() - ((-330) * 60 * 1000))
     var weekday = new Array(7);
@@ -477,20 +531,20 @@ const get_stop_times = async (start_stop: string, end_stop: string, date: string
                     ori.stop_id = '${start_stop}' AND end.stop_id = '${end_stop}' AND
                     cal.${weekday[day]} = 1 order by ori.arrival_time`,
         { type: QueryTypes.SELECT });
-    
-    const stopTimes: Array<StopTimeDataType>=[];
+
+    const stopTimes: Array<StopTimeDataType> = [];
     for (var time of times) {
         time.arrival_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.arrival_time + '.000+05:30').toISOString();
         time.departure_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.departure_time + '.000+05:30').toISOString();
         time.destination_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.destination_time + '.000+05:30').toISOString();
-        
+
         stopTimes.push(stopTimeSchema.parse(time));
     }
-    
+
     return stopTimes;
 }
 
-const get_fares = async (start: string, end: string) => {
+const get_fare = async (start: string, end: string) => {
     var fareObjs = await sequelize.query(`SELECT attr.*
                                         FROM 'FareRules' fare, 'FareAttributes' attr
                                         WHERE fare.fare_id = attr.fare_id AND
@@ -501,7 +555,7 @@ const get_fares = async (start: string, end: string) => {
         throw ('Fare rule not found');
     }
 
-    const fare: FareDataType={
+    const fare: FareDataType = {
         fare_id: fareObjs[0].fare_id,
         price: fareObjs[0].price,
         currency_type: fareObjs[0].currency_type,
