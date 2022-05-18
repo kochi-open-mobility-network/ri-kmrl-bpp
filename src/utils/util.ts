@@ -1,12 +1,18 @@
 import _ from 'lodash';
 import { Request, response } from 'express';
 import { QueryTypes } from 'sequelize';
-const axios = require('axios').default;
 
 import { Stops } from '../db/models/Stops.model';
 const { config } = require('../../config/config');
 import { sequelize } from '../db/index';
 import { createAuthorizationHeader } from './auth';
+import { StopDataType } from '../schemas/stops.schema';
+import axios from 'axios';
+import { StopTimeDataType, stopTimeSchema } from '../schemas/stopTime.schema';
+import { ItemDataType } from '../schemas/item.schema';
+import { FareDataType } from '../schemas/fare.schema';
+import {FulfillmentDataType} from '../schemas/fulfillment.schema';
+import { LocationDataType } from '../schemas/location.schema';
 
 
 export function combineURLs(baseURL: string, relativeURL: string) {
@@ -37,38 +43,45 @@ const findClosestStops = async (gps: string) => {
     const lat1 = parseFloat(gps.split(',')[0])
     const lon1 = parseFloat(gps.split(',')[1])
     const stops = await getAllStations();
-    var stops_obj = []
+    var stops_obj: Array<StopDataType> = []
     for (var stop of stops) {
         var stop_obj: any = stop.toJSON()
         const lat2 = parseFloat(stop.stop_lat);
         const lon2 = parseFloat(stop.stop_lon);
         const distance = getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2);
-        stop_obj.distance = distance;
-        stops_obj.push(stop_obj);
+        stops_obj.push({
+            ...stop_obj, distance
+        });
     }
+
+    if(stops_obj.length==0){
+        return [];
+    }
+
     const sortedStops = _.sortBy(stops_obj, ['distance']);
     const closestStop = sortedStops[0];
-    var closestStops = []
-    closestStops.push(closestStop.stop_id)
+    var closestStopIds: Array<string> = []
+    closestStopIds.push(closestStop.stop_id)
     console.log(closestStop.stop_id, closestStop.distance, "kms away")
     if (closestStop.distance > config.DISTANCE_LIMIT_KM) {
         return [];
     }
     for (var this_stop of sortedStops.slice(1)) {
-        if ((this_stop.distance - closestStop.distance) < config.THRESHOLD_DISTANCE_KM && sortedStops.indexOf(this_stop) < config.MAX_STATIONS ) {
-            closestStops.push(this_stop.stop_id)
+        if ((this_stop.distance - closestStop.distance) < config.THRESHOLD_DISTANCE_KM && sortedStops.indexOf(this_stop) < config.MAX_STATIONS) {
+            closestStopIds.push(this_stop.stop_id)
             console.log(this_stop.stop_id, this_stop.distance, "kms away")
         } else {
             break;
         }
     }
-    return closestStops;
+
+    return closestStopIds;
 }
 
 const findClosestFromGMapsResponse = (sortedResponses: any) => {
     const closestStop = sortedResponses[0];
-    var closestStops = []
-    closestStops.push(closestStop.stop_id);
+    var closestStopIds: Array<string> = []
+    closestStopIds.push(closestStop.stop_id);
     console.log("Closest is ", closestStop.stop_id, closestStop.distance.text, " and ", closestStop.duration.text, " away");
     if (closestStop.distance.value / 1000 > config.DISTANCE_LIMIT_KM) {
         return [];
@@ -79,20 +92,20 @@ const findClosestFromGMapsResponse = (sortedResponses: any) => {
             (stop.distance.value / 1000 - closestStop.distance.value / 1000) < config.THRESHOLD_DISTANCE_KM
         //console.log("Delta distance:", (stop.distance.value / 1000 - closestStop.distance.value / 1000),"Delta time:" ,(stop.duration.value / 60 - closestStop.duration.value / 60));
         if (threshold_passed && sortedResponses.indexOf(stop) < config.MAX_STATIONS) {
-            closestStops.push(stop.stop_id);
+            closestStopIds.push(stop.stop_id);
             console.log(stop.stop_id, stop.distance.text, " and ", stop.duration.text, " away selected");
         } else {
             break;
         }
     }
-    return closestStops;
+    return closestStopIds;
 }
 
 const findClosestStopsMaps = async (gpsStart: string, gpsEnd: string) => {
     try {
         const stops: any = await getAllStations();
         const origins = [gpsStart, gpsEnd].join('|');
-        const destinations_array = []
+        const destinations_array: Array<string> = []
         for (var stop of stops) {
             destinations_array.push(`${stop.stop_lat},${stop.stop_lon}`);
         }
@@ -106,7 +119,7 @@ const findClosestStopsMaps = async (gpsStart: string, gpsEnd: string) => {
             }
         })
         if (response.data.status !== 'OK') {
-            console.log("Response from google maps:", response);
+            console.log("Response from google maps:", response.data);
             throw ("Maps API error")
         }
 
@@ -183,8 +196,8 @@ const validateInputs = (req: Request) => {
 
 const createOnSearch = async (req: Request) => {
     const body = req.body;
-    var start_codes = [];
-    var end_codes = [];
+    var start_codes:Array<string> = [];
+    var end_codes: Array<string> = [];
     if (body.message?.intent?.fulfillment?.start?.location?.station_code) {
         start_codes.push(body.message.intent.fulfillment.start.location.station_code)
     }
@@ -231,8 +244,32 @@ const createOnSearch = async (req: Request) => {
         console.log(req.body?.context?.transaction_id, "No routes found");
         return;
     }
+
+
+    // TODO: actual work starts from here.
     var locations: any = [];
-    var items: any = [];
+    var items: Array<any> = [];
+    const fulfillments: Array<FulfillmentDataType>=[];
+
+    // TODO: first create a locations array.
+    // Then use it to create items and fulfillments array.
+
+    const locationsMap=new Map<string, LocationDataType>();
+    for(let location_code of start_codes){
+        const location: LocationDataType = await getLocationData(location_code);
+        locationsMap.set(location_code, location);
+    }
+    for(let location_code of end_codes){
+        const location: LocationDataType = await getLocationData(location_code);
+        locationsMap.set(location_code, location);
+    }
+
+    for (var start_code of start_codes) {
+        for (var end_code of end_codes) {
+            // TODO: build items and fulfillments here.
+        }
+    }
+
     for (var start_code of start_codes) {
         for (var end_code of end_codes) {
             if (start_code == end_code) {
@@ -240,6 +277,11 @@ const createOnSearch = async (req: Request) => {
             }
             console.log(req.body?.context?.transaction_id, "ROUTE:", start_code, "TO", end_code);
             const stop_times = await get_stop_times(start_code, end_code, date);
+            
+            console.log('\n\nDev Test:')
+            console.log('Stop Times Length', stop_times.length);
+            console.log('Dev Test End\n\n');
+
             if (stop_times.length !== 0) {
                 const fare = await get_fares(start_code, end_code);
                 if (!_.find(locations, ['id', start_code])) {
@@ -301,6 +343,29 @@ const createHeaderConfig = async (request: any) => {
     return axios_config;
 }
 
+const buildFulfillment = async()=>{
+
+}
+
+const buildItem = async (start_code: string, end_code: string, fare: FareDataType) => {
+    const item: ItemDataType={
+        id: `SJT_${start_code}_TO_${end_code}`,
+        descriptor:{
+            code: "SJT",
+            name: "Single Journey Ticket"
+        },
+        price: {
+            value: fare.price,
+            currency: "INR"
+        },
+        fulfillment_id: `${start_code}_TO_${end_code}`,
+        // TODO: discuss with BAP team.
+        matched:false
+    }
+
+    return item;
+}
+
 const createItemsArray = async (from: string, to: string, fare: any, stop_times: any) => {
     const item_code = `${from}_TO_${to}`;
     const from_details = await getStationDetails(from);
@@ -347,6 +412,22 @@ const createItemsArray = async (from: string, to: string, fare: any, stop_times:
     return ([item1]);
 }
 
+const getLocationData = async (code: string): Promise<LocationDataType> => {
+    const station_details = await getStationDetails(code);
+    const gps = `${station_details.stop_lat},${station_details.stop_lon}`;
+    const name = station_details.stop_name;
+    const location: LocationDataType = {
+        id: code,
+        descriptor: {
+            name: name,
+        },
+        gps: gps,
+        station_code: code
+    }
+
+    return location;
+}
+
 const createLocationsArray = async (code: string) => {
     const station_details = await getStationDetails(code);
     const gps = `${station_details.stop_lat},${station_details.stop_lon}`;
@@ -376,7 +457,7 @@ const getAllStations = async () => {
     return stops;
 }
 
-const get_stop_times = async (start_stop: string, end_stop: string, date: string) => {
+const get_stop_times = async (start_stop: string, end_stop: string, date: string) : Promise<Array<StopTimeDataType>> => {
     const date_obj = new Date(date);
     const date_ist = new Date(date_obj.getTime() - ((-330) * 60 * 1000))
     var weekday = new Array(7);
@@ -398,25 +479,41 @@ const get_stop_times = async (start_stop: string, end_stop: string, date: string
                     ori.stop_id = '${start_stop}' AND end.stop_id = '${end_stop}' AND
                     cal.${weekday[day]} = 1 order by ori.arrival_time`,
         { type: QueryTypes.SELECT });
+    
+    const stopTimes: Array<StopTimeDataType>=[];
     for (var time of times) {
         time.arrival_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.arrival_time + '.000+05:30').toISOString();
         time.departure_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.departure_time + '.000+05:30').toISOString();
         time.destination_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.destination_time + '.000+05:30').toISOString();
+        
+        stopTimes.push(stopTimeSchema.parse(time));
     }
-    return times;
+    
+    return stopTimes;
 }
 
 const get_fares = async (start: string, end: string) => {
-    var fare = await sequelize.query(`SELECT attr.*
+    var fareObjs = await sequelize.query(`SELECT attr.*
                                         FROM 'FareRules' fare, 'FareAttributes' attr
                                         WHERE fare.fare_id = attr.fare_id AND
                                         fare.origin_id =  '${start}' AND 
                                         fare.destination_id = '${end}'`,
         { type: QueryTypes.SELECT });
-    if (fare.length === 0) {
+    if (fareObjs.length === 0) {
         throw ('Fare rule not found');
     }
-    return fare[0];
+
+    const fare: FareDataType={
+        fare_id: fareObjs[0].fare_id,
+        price: fareObjs[0].price,
+        currency_type: fareObjs[0].currency_type,
+        payment_method: fareObjs[0].payment_method,
+        transfers: fareObjs[0].transfers,
+        createdAt: fareObjs[0].createdAt,
+        updatedAt: fareObjs[0].updatedAt
+    }
+
+    return fare;
 }
 
 
