@@ -9,7 +9,7 @@ import { createAuthorizationHeader } from './auth';
 import { StopDataType } from '../schemas/stops.schema';
 import axios from 'axios';
 import { StopTimeDataType, stopTimeSchema } from '../schemas/stopTime.schema';
-import { ItemDataType } from '../schemas/item.schema';
+import { ItemDataType, itemSchema } from '../schemas/item.schema';
 import { FareDataType } from '../schemas/fare.schema';
 import { FulfillmentDataType, fulfillmentSchehma } from '../schemas/fulfillment.schema';
 import { LocationDataType } from '../schemas/location.schema';
@@ -415,7 +415,7 @@ const buildItem = async (start_code: string, end_code: string, fare: FareDataTyp
         matched: "false"
     }
 
-    return item;
+    return itemSchema.parse(item);
 }
 
 const createItemsArray = async (from: string, to: string, fare: any, stop_times: any) => {

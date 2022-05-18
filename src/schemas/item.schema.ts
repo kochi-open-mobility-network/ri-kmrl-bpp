@@ -11,7 +11,7 @@ export const itemSchema=z.object({
         currency: z.string(),
         value: z.string(),
     }),
-    matched: z.boolean(),
+    matched: z.string(),
 });
 
 export type ItemDataType = z.infer<typeof itemSchema>;
