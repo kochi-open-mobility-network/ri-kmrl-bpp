@@ -206,8 +206,8 @@ const createOnSearch = async (req: Request) : Promise<void> => {
         end_codes.push(body.message.intent.fulfillment.end.location.station_code);
     }
 
-    const date = body.message?.intent?.fulfillment?.start?.time?.timestamp ?
-        body.message?.intent?.fulfillment?.start?.time?.timestamp :
+    const date = body.message?.intent?.fulfillment?.start?.time ?
+        body.message?.intent?.fulfillment?.start?.time :
         new Date().toISOString();
 
     const callback_url = req.subscriber_type === 'bg' ? req.subscriber_url : body.context.bap_uri;
@@ -384,7 +384,6 @@ const buildItem = async (start_code: string, end_code: string, fare: FareDataTyp
             currency: "INR"
         },
         fulfillment_id: `${start_code}_TO_${end_code}`,
-        // TODO: discuss with BAP team.
         matched: "false"
     }
 
@@ -450,7 +449,10 @@ const get_stop_times = async (start_stop: string, end_stop: string, date: string
         time.departure_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.departure_time + '.000+05:30').toISOString();
         time.destination_time = new Date(date_ist.toISOString().substring(0, 10) + 'T' + time.destination_time + '.000+05:30').toISOString();
 
-        stopTimes.push(stopTimeSchema.parse(time));
+        const arrivalTime=Date.parse(time.arrival_time);
+        if(arrivalTime>=date_obj.getTime()){
+            stopTimes.push(stopTimeSchema.parse(time));
+        }
     }
 
     return stopTimes;
