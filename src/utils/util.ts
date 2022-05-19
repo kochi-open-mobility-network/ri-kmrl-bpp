@@ -40,7 +40,7 @@ function deg2rad(deg: number) {
     return deg * (Math.PI / 180)
 }
 
-const findClosestStops = async (gps: string) => {
+const findClosestStops = async (gps: string) : Promise<string[]> => {
     const lat1 = parseFloat(gps.split(',')[0])
     const lon1 = parseFloat(gps.split(',')[1])
     const stops = await getAllStations();
@@ -79,7 +79,7 @@ const findClosestStops = async (gps: string) => {
     return closestStopIds;
 }
 
-const findClosestFromGMapsResponse = (sortedResponses: any) => {
+const findClosestFromGMapsResponse = (sortedResponses: any) : string[] => {
     const closestStop = sortedResponses[0];
     var closestStopIds: Array<string> = []
     closestStopIds.push(closestStop.stop_id);
@@ -102,7 +102,7 @@ const findClosestFromGMapsResponse = (sortedResponses: any) => {
     return closestStopIds;
 }
 
-const findClosestStopsMaps = async (gpsStart: string, gpsEnd: string) => {
+const findClosestStopsMaps = async (gpsStart: string, gpsEnd: string): Promise<string[][]> => {
     try {
         const stops: any = await getAllStations();
         const origins = [gpsStart, gpsEnd].join('|');
@@ -144,7 +144,7 @@ const findClosestStopsMaps = async (gpsStart: string, gpsEnd: string) => {
     }
 }
 
-const validateGps = (gps: string) => {
+const validateGps = (gps: string) : boolean => {
     if (gps.split(',').length !== 2) {
         return false;
     }
@@ -160,7 +160,7 @@ const validateGps = (gps: string) => {
     return true;
 }
 
-const validateInputs = (req: Request) => {
+const validateInputs = (req: Request) : string | null=> {
     const body = req.body;
     const context = req.body.context;
     if (!context) {
@@ -195,7 +195,7 @@ const validateInputs = (req: Request) => {
     }
 }
 
-const createOnSearch = async (req: Request) => {
+const createOnSearch = async (req: Request) : Promise<void> => {
     const body = req.body;
     var start_codes: Array<string> = [];
     var end_codes: Array<string> = [];
@@ -283,78 +283,51 @@ const createOnSearch = async (req: Request) => {
         }
     }
 
-    // // OLD Code:
-    // for (var start_code of start_codes) {
-    //     for (var end_code of end_codes) {
-    //         if (start_code == end_code) {
-    //             continue;
-    //         }
-    //         console.log(req.body?.context?.transaction_id, "ROUTE:", start_code, "TO", end_code);
-    //         const stop_times = await get_stop_times(start_code, end_code, date);
+    if (items.length == 0) {
+        return;    
+    }
 
-    //         console.log('\n\nDev Test:')
-    //         console.log('Stop Times Length', stop_times.length);
-    //         console.log('Dev Test End\n\n');
+    let response: any = {};
+    response.context = body.context;
+    response.context.action = 'on_search';
+    response.context.bpp_id = config.bpp_id;
+    response.context.bpp_uri = config.bpp_uri;
+    response.message = {
+        "catalog": {
+            "bpp/descriptor": {
+                "name": "Kochi Metro Rail Ltd."
+            },
+            "bpp/providers": [
+                {
+                    "id": "KMRL",
+                    "descriptor": {
+                        "name": "KMRL online"
+                    },
+                    "locations": locations,
+                    "items": items,
+                    "fulfillments": fulfillments
+                }
+            ]
+        }
+    };
 
-    //         if (stop_times.length !== 0) {
-    //             const fare = await get_fare(start_code, end_code);
-    //             if (!_.find(locations, ['id', start_code])) {
-    //                 const this_locations = await createLocationsArray(start_code);
-    //                 locations = locations.concat(this_locations);
-    //             }
-    //             if (!_.find(locations, ['id', end_code])) {
-    //                 const this_locations = await createLocationsArray(end_code);
-    //                 locations = locations.concat(this_locations);
-    //             }
-    //             const this_items = await createItemsArray(start_code, end_code, fare, stop_times);
-    //             items = items.concat(this_items);
-    //         }
-    //     }
+    // // TODO: remove this on production...
+    // try {
+    //     writeFileSync('TestJSONs/developed_on_search.json', JSON.stringify(response));
+    // } catch (error) {
+    //     console.error(error);
     // }
 
-    if (items.length !== 0) {
-        let response: any = {};
-        response.context = body.context;
-        response.context.action = 'on_search';
-        response.context.bpp_id = config.bpp_id;
-        response.context.bpp_uri = config.bpp_uri;
-        response.message = {
-            "catalog": {
-                "bpp/descriptor": {
-                    "name": "Kochi Metro Rail Ltd."
-                },
-                "bpp/providers": [
-                    {
-                        "id": "KMRL",
-                        "descriptor": {
-                            "name": "KMRL online"
-                        },
-                        "locations": locations,
-                        "items": items,
-                        "fulfillments": fulfillments
-                    }
-                ]
-            }
-        };
-
-        // TODO: remove this on production...
-        try {
-            writeFileSync('TestJSONs/developed_on_search.json', JSON.stringify(response));
-        } catch (error) {
-            console.error(error);
-        }
-
-        const url = combineURLs(callback_url, '/on_search');
-        const axios_config = await createHeaderConfig(response);
-        // // TODO: uncomment this.
-        // console.log(req.body?.context?.transaction_id, "Response body", JSON.stringify(response));
-        console.log(req.body?.context?.transaction_id, "Header", axios_config.headers);
-        console.log(req.body?.context?.transaction_id, "Sending response to ", url);
-        try {
-            axios.post(url, response, axios_config);
-        } catch (e) {
-            console.log(e);
-        }
+    const url = combineURLs(callback_url, '/on_search');
+    const axios_config = await createHeaderConfig(response);
+    
+    console.log(req.body?.context?.transaction_id, "Response body", JSON.stringify(response));
+    console.log(req.body?.context?.transaction_id, "Header", axios_config.headers);
+    console.log(req.body?.context?.transaction_id, "Sending response to ", url);
+    try {
+        axios.post(url, response, axios_config);
+    } catch (e) {
+        console.log(e);
     }
 }
 
@@ -368,7 +341,7 @@ const createHeaderConfig = async (request: any) => {
     return axios_config;
 }
 
-const buildFulfillment = async (start_code: string, end_code: string, locationsMap: Map<string, LocationDataType>, stopTime: StopTimeDataType) => {
+const buildFulfillment = async (start_code: string, end_code: string, locationsMap: Map<string, LocationDataType>, stopTime: StopTimeDataType)  :  Promise<FulfillmentDataType>=> {
     const startLocation = locationsMap.get(start_code);
     const endLocation = locationsMap.get(end_code);
 
@@ -399,7 +372,7 @@ const buildFulfillment = async (start_code: string, end_code: string, locationsM
     return fulfillmentSchehma.parse(fulfillmentData);
 }
 
-const buildItem = async (start_code: string, end_code: string, fare: FareDataType) => {
+const buildItem = async (start_code: string, end_code: string, fare: FareDataType) : Promise<ItemDataType> => {
     const item: ItemDataType = {
         id: `SJT_${start_code}_TO_${end_code}`,
         descriptor: {
@@ -418,52 +391,6 @@ const buildItem = async (start_code: string, end_code: string, fare: FareDataTyp
     return itemSchema.parse(item);
 }
 
-const createItemsArray = async (from: string, to: string, fare: any, stop_times: any) => {
-    const item_code = `${from}_TO_${to}`;
-    const from_details = await getStationDetails(from);
-    const to_details = await getStationDetails(to);
-    const item_name = `${from_details.stop_name} to ${to_details.stop_name}`;
-    const price = fare.price;
-    const currency_type = fare.currency_type;
-    var from_schedule = [];
-    var to_schedule = [];
-    for (var time of stop_times) {
-        from_schedule.push(time.arrival_time);
-        to_schedule.push(time.destination_time);
-    }
-    const item1 = {
-        "id": item_code,
-        "descriptor": {
-            "name": item_name
-        },
-        "price": {
-            "currency": currency_type,
-            "value": price
-        },
-        "stops": [
-            {
-                "id": from,
-                "time": {
-                    "schedule": {
-                        "times": from_schedule
-                    }
-                }
-            },
-            {
-                "id": to,
-                "time": {
-                    "schedule": {
-                        "times": to_schedule
-                    }
-                }
-            },
-        ],
-        "location_id": from,
-        "matched": true
-    }
-    return ([item1]);
-}
-
 const getLocationData = async (code: string): Promise<LocationDataType> => {
     const station_details = await getStationDetails(code);
     const gps = `${station_details.stop_lat},${station_details.stop_lon}`;
@@ -480,22 +407,7 @@ const getLocationData = async (code: string): Promise<LocationDataType> => {
     return location;
 }
 
-const createLocationsArray = async (code: string) => {
-    const station_details = await getStationDetails(code);
-    const gps = `${station_details.stop_lat},${station_details.stop_lon}`;
-    const name = station_details.stop_name;
-    const location = {
-        "id": code,
-        "descriptor": {
-            "name": name
-        },
-        "station_code": code,
-        "gps": gps
-    };
-    return [location];
-}
-
-const getStationDetails = async (code: string) => {
+const getStationDetails = async (code: string) : Promise<Stops> => {
     const stop = await Stops.findOne({ where: { stop_id: code } });
     if (stop) {
         return stop;
@@ -504,7 +416,7 @@ const getStationDetails = async (code: string) => {
     }
 }
 
-const getAllStations = async () => {
+const getAllStations = async () : Promise<Stops[]> => {
     const stops = await Stops.findAll();
     return stops;
 }
@@ -544,7 +456,7 @@ const get_stop_times = async (start_stop: string, end_stop: string, date: string
     return stopTimes;
 }
 
-const get_fare = async (start: string, end: string) => {
+const get_fare = async (start: string, end: string) : Promise<FareDataType> => {
     var fareObjs = await sequelize.query(`SELECT attr.*
                                         FROM 'FareRules' fare, 'FareAttributes' attr
                                         WHERE fare.fare_id = attr.fare_id AND
