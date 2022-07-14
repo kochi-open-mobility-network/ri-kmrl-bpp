@@ -1,4 +1,4 @@
-# KMRL BPP
+# KMRL BPP Reference Implementation
 
 ### Docker build
 docker build . -t metro-bpp
