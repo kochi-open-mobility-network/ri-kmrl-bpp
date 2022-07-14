@@ -5,12 +5,11 @@
         "city": "std:484",
         "action": "search",
         "core_version": "0.9.3",
-        "bap_id": "Kochi1",
-        "bap_uri": "string",
-        "bpp_id": "KMRL",
-        "bpp_uri": "localhost:8000/search",
-        "transaction_id": "12391830183",
-        "message_id": "2131030183",
+        "bap_id": "api.example.com",
+        "bap_uri": "https://api.example.com/path/to/callback/base/url",
+        "bpp_id": "api.kmrl.com",
+        "bpp_uri": "<bpp-base-url>/search",
+        "message_id": "7a90a640-665b-4052-bbad-17831b7ef878",
         "timestamp": "2021-09-29T09:55:41.161Z"
     },
     "message": {
@@ -18,16 +17,15 @@
             "fulfillment": {
                 "start": {
                     "location": {
-                        "station_code": "string"
+                        "station_code": "STN-A"
                     },
                     "time": {
-                        "label": "start_time",
                         "timestamp": "2021-09-29T09:55:41.161Z"
                     }
                 },
                 "end": {
                     "location": {
-                        "station_code": "string"
+                        "station_code": "STN-B"
                     }
                 }
             }
