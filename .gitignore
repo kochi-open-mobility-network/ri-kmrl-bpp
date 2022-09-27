@@ -3,3 +3,4 @@
 dev.env
 /dist
 key_store.json
+/TestJSONs
