@@ -12,6 +12,6 @@ export const config = {
     country: process.env.country || "IND",
     domain: process.env.domain || "nic2004:60212",
     city: process.env.city || "",
-    core_version: process.env.core_version || "0.9.1",
+    core_version: process.env.core_version || "0.9.3",
     auth: true
 }
